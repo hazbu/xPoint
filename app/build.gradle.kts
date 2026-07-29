@@ -10,8 +10,8 @@ android {
         applicationId = "com.hazbu.xpoint"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
+        versionName = System.getenv("APP_VERSION_NAME") ?: "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
