@@ -12,14 +12,11 @@ android {
         targetSdk = 36
         versionCode = System.getenv("APP_VERSION_CODE")?.toInt() ?: 1
         versionName = System.getenv("APP_VERSION_NAME") ?: "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            // Membaca dari environment variables (untuk GitHub Actions)
-            // atau dari local.properties/gradle.properties (untuk build lokal)
             val keystoreFile = System.getenv("RELEASE_STORE_FILE") ?: project.findProperty("RELEASE_STORE_FILE")?.toString()
             val keystorePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: project.findProperty("RELEASE_STORE_PASSWORD")?.toString()
             val keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: project.findProperty("RELEASE_KEY_ALIAS")?.toString()

@@ -1,10 +1,13 @@
 name: Android Release APK
+
 on:
   push:
     tags:
       - 'v*'
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,23 +15,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history for all tags and branches
+          fetch-depth: 0
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: gradle
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
       - name: Decode Keystore
         run: |
           printf "%s" "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release-key.jks
+
       - name: Calculate Version Code
         id: version_code
         run: |
           TAG_COUNT=$(git tag | wc -l)
           echo "count=$TAG_COUNT" >> $GITHUB_OUTPUT
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
         env:
@@ -38,15 +46,16 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           APP_VERSION_CODE: ${{ steps.version_code.outputs.count }}
           APP_VERSION_NAME: ${{ github.ref_name }}
+
       - name: Rename APK
         run: |
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
           TAG_NAME=${{ github.ref_name }}
           mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/${REPO_NAME}-${TAG_NAME}.apk
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: app/build/outputs/apk/release/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
