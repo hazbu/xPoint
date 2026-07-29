@@ -1,16 +1,11 @@
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.FakeLocation" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary brand color. -->
+    <style name="Theme.xPoint" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your dark theme here. -->
         <item name="colorPrimary">@color/purple_200</item>
-        <item name="colorOnPrimary">@color/black</item>
-
-        <!-- Secondary brand color. -->
-        <item name="colorSecondary">@color/teal_200</item>
-        <item name="colorOnSecondary">@color/black</item>
-
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor">?android:attr/windowBackground</item>
-        <item name="android:windowLightStatusBar" >false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>
