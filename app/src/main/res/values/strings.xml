@@ -9,3 +9,4 @@
     <string name="toast_invalid_range">Invalid range (Lat: -90 to 90, Long: -180 to 180)</string>
     <string name="toast_invalid_input">Please enter valid decimal numbers</string>
 </resources>
+
