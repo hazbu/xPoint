@@ -1,0 +1,6 @@
+name=xPoint
+description=xPoint - Advanced Location Module
+minApiVersion=101
+targetApiVersion=101
+exceptionMode=passthrough
+autoHotReload=true

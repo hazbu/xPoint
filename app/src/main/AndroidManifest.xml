@@ -15,7 +15,10 @@
             android:value="xPoint - Advanced Location Module" />
         <meta-data
             android:name="xposedminversion"
-            android:value="82" />
+            android:value="101" />
+        <meta-data
+            android:name="xposedsharedprefs"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true">
