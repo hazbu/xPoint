@@ -6,6 +6,11 @@ import android.content.Context
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import com.hazbu.xpoint.Constants.DEFAULT_LAT
+import com.hazbu.xpoint.Constants.DEFAULT_LONG
+import com.hazbu.xpoint.Constants.KEY_LAT
+import com.hazbu.xpoint.Constants.KEY_LONG
+import com.hazbu.xpoint.Constants.PREFS_NAME
 
 class LocationProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
@@ -17,11 +22,11 @@ class LocationProvider : ContentProvider() {
         selectionArgs: Array<out String>?,
         sortOrder: String?
     ): Cursor {
-        val prefs = context?.getSharedPreferences("fake_location_prefs", Context.MODE_PRIVATE)
-        val cursor = MatrixCursor(arrayOf("lat", "long"))
+        val prefs = context?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cursor = MatrixCursor(arrayOf(KEY_LAT, KEY_LONG))
         cursor.addRow(arrayOf(
-            prefs?.getString("lat", "0.0") ?: "0.0",
-            prefs?.getString("long", "0.0") ?: "0.0"
+            prefs?.getString(KEY_LAT, DEFAULT_LAT.toString()) ?: DEFAULT_LAT.toString(),
+            prefs?.getString(KEY_LONG, DEFAULT_LONG.toString()) ?: DEFAULT_LONG.toString()
         ))
         return cursor
     }

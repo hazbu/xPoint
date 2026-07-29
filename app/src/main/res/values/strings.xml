@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">xPoint</string>
+    <string name="title_manager">xPoint</string>
+    <string name="hint_latitude">Latitude</string>
+    <string name="hint_longitude">Longitude</string>
+    <string name="btn_save">Save Coordinates</string>
+    <string name="note_restart">Note: Changes apply after restarting the target app.</string>
+    <string name="toast_save_success">Coordinates Saved Successfully</string>
+    <string name="toast_invalid_range">Invalid range (Lat: -90 to 90, Long: -180 to 180)</string>
+    <string name="toast_invalid_input">Please enter valid decimal numbers</string>
 </resources>
