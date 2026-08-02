@@ -18,7 +18,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -29,7 +30,9 @@ jobs:
         run: |
           chmod +x gradlew
           printf "%s" "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release-key.jks
-          echo "text=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          echo "text<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build
         run: |
@@ -41,6 +44,12 @@ jobs:
           RELEASE_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Rename APK
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d '/' -f 2)
+          TAG_NAME=${{ github.ref_name }}
+          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/${REPO_NAME}-${TAG_NAME}.apk
 
       - name: Release
         uses: softprops/action-gh-release@v2
