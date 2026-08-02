@@ -62,5 +62,5 @@ jobs:
           token: ${{ secrets.MIRROR_REPO_TOKEN }}
           files: "*.apk"
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: Release ${{ steps.meta.outputs.tag }}
+          name: ${{ inputs.release_name }}
           body: ${{ inputs.release_body }}
