@@ -1,66 +1,60 @@
-name: Sync to Official Mirror
+name: Android Release APK
 
 on:
-  workflow_call:
-    inputs:
-      tag_name: { required: true, type: string }
-      release_name: { required: true, type: string }
-      release_body: { required: false, type: string }
-    secrets:
-      MIRROR_REPO_TOKEN: { required: true }
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  sync:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      commit_message: ${{ steps.msg.outputs.text }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Sync Metadata
-        id: meta
-        run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          
-          PKG_ID=$(grep "applicationId =" app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
-          REPO="Xposed-Modules-Repo/$PKG_ID"
-          V_CODE=$(git tag | wc -l)
-          V_NAME=$(echo "${{ inputs.tag_name }}" | sed 's/^v//')
-          TAG="${V_CODE}-${V_NAME}"
-          
-          NAME=$(grep -oP '(?<=<string name="app_name">).*?(?=</string>)' app/src/main/res/values/strings.xml || grep '<string name="app_name">' app/src/main/res/values/strings.xml | sed 's/.*>\(.*\)<.*/\1/')
-          DESC=$(sed -n '/xposeddescription/,/\/>/p' app/src/main/AndroidManifest.xml | grep 'android:value=' | sed 's/.*android:value="\(.*\)".*/\1/')
-          
-          git clone https://x-access-token:${{ secrets.MIRROR_REPO_TOKEN }}@github.com/$REPO.git mirror
-          cat <<EOF > mirror/module.prop
-          id=$PKG_ID
-          name=$NAME
-          version=$V_NAME
-          versionCode=$V_CODE
-          author=${{ github.actor }}
-          description=$DESC
-          support=https://github.com/$REPO/issues
-          EOF
-          
-          cp README.md mirror/
-          cd mirror
-          git add . && git commit -m "Release $TAG" && git push origin main || echo "No changes"
-          
-          echo "repo=$REPO" >> $GITHUB_OUTPUT
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-      - name: Fetch Artifacts
-        run: gh release download ${{ inputs.tag_name }} --pattern "*.apk" --repo ${{ github.repository }}
+      - name: Prepare Build
+        id: msg
+        run: |
+          chmod +x gradlew
+          printf "%s" "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release-key.jks
+          echo "text=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+
+      - name: Build
+        run: |
+          V_NAME=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          V_CODE=$(git tag | wc -l)
+          ./gradlew assembleRelease -PAPP_VERSION_CODE=$V_CODE -PAPP_VERSION_NAME=$V_NAME
+        env:
+          RELEASE_STORE_FILE: release-key.jks
+          RELEASE_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+          body: ${{ steps.msg.outputs.text }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: ${{ steps.meta.outputs.repo }}
-          token: ${{ secrets.MIRROR_REPO_TOKEN }}
-          files: "*.apk"
-          tag_name: ${{ steps.meta.outputs.tag }}
-          name: Release ${{ steps.meta.outputs.tag }}
-          body: ${{ inputs.release_body }}
+  mirror:
+    needs: build
+    uses: ./.github/workflows/mirror_official.yml
+    with:
+      tag_name: ${{ github.ref_name }}
+      release_name: ${{ github.ref_name }}
+      release_body: ${{ needs.build.outputs.commit_message }}
+    secrets: inherit
