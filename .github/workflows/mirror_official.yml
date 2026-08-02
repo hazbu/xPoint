@@ -22,16 +22,16 @@ jobs:
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          
+
           PKG_ID=$(grep "applicationId =" app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
           REPO="Xposed-Modules-Repo/$PKG_ID"
           V_CODE=$(git tag | wc -l)
           V_NAME=$(echo "${{ inputs.tag_name }}" | sed 's/^v//')
           TAG="${V_CODE}-${V_NAME}"
-          
+
           NAME=$(grep -oP '(?<=<string name="app_name">).*?(?=</string>)' app/src/main/res/values/strings.xml || grep '<string name="app_name">' app/src/main/res/values/strings.xml | sed 's/.*>\(.*\)<.*/\1/')
           DESC=$(sed -n '/xposeddescription/,/\/>/p' app/src/main/AndroidManifest.xml | grep 'android:value=' | sed 's/.*android:value="\(.*\)".*/\1/')
-          
+
           git clone https://x-access-token:${{ secrets.MIRROR_REPO_TOKEN }}@github.com/$REPO.git mirror
           cat <<EOF > mirror/module.prop
           id=$PKG_ID
@@ -42,11 +42,11 @@ jobs:
           description=$DESC
           support=https://github.com/$REPO/issues
           EOF
-          
+
           cp README.md mirror/
           cd mirror
           git add . && git commit -m "Release $TAG" && git push origin main || echo "No changes"
-          
+
           echo "repo=$REPO" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
