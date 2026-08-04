@@ -49,7 +49,7 @@ android {
 }
 
 dependencies {
-    compileOnly(libs.xposed.api)
+    compileOnly(libs.libxposed.api)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
