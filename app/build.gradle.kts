@@ -50,6 +50,7 @@ android {
 
 dependencies {
     compileOnly(libs.libxposed.api)
+    implementation(libs.libxposed.service)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)

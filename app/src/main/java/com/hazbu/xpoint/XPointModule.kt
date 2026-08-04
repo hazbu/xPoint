@@ -1,5 +1,6 @@
 package com.hazbu.xpoint
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Address
 import android.location.Location
@@ -33,7 +34,10 @@ class XPointModule : XposedModule {
     override fun onPackageReady(param: PackageReadyParam) {
         super.onPackageReady(param)
         Log.i("xPoint", "Package ready: ${param.packageName}")
-        if (param.packageName == "com.hazbu.xpoint") return
+        if (param.packageName == "com.hazbu.xpoint") {
+            hookManagerApp(param)
+            return
+        }
 
         try {
             val contextWrapperClass = param.classLoader.loadClass("android.content.ContextWrapper")
@@ -54,6 +58,15 @@ class XPointModule : XposedModule {
         hookLocation(param)
         hookLocationManager(param)
         hookGeocoder(param)
+    }
+
+    private fun hookManagerApp(param: PackageReadyParam) {
+        try {
+            val clazz = param.classLoader.loadClass("com.hazbu.xpoint.MainActivity")
+            hook(clazz.getDeclaredMethod("checkSelfActive")).intercept { true }
+        } catch (e: Exception) {
+            Log.e("xPoint", "Failed to hook manager app: ${e.message}")
+        }
     }
 
     private fun refreshCoordinates(context: Context) {
@@ -86,6 +99,7 @@ class XPointModule : XposedModule {
         }
     }
 
+    @SuppressLint("DiscouragedPrivateApi")
     private fun hookLocationManager(param: PackageReadyParam) {
         try {
             val lmClass = param.classLoader.loadClass("android.location.LocationManager")
@@ -106,7 +120,7 @@ class XPointModule : XposedModule {
                 Log.w("xPoint", "Failed to hook getLastKnownLocation(String): ${e.message}")
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 try {
                     val lastLocationRequestClass = param.classLoader.loadClass("android.location.LastLocationRequest")
                     val m2 = lmClass.getDeclaredMethod("getLastKnownLocation", String::class.java, lastLocationRequestClass)

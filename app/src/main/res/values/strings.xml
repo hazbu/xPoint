@@ -8,5 +8,7 @@
     <string name="toast_save_success">Coordinates Saved Successfully</string>
     <string name="toast_invalid_range">Invalid range (Lat: -90 to 90, Long: -180 to 180)</string>
     <string name="toast_invalid_input">Please enter valid decimal numbers</string>
+    <string name="status_module_active">Module Active</string>
+    <string name="status_module_inactive">Module Inactive</string>
 </resources>
 
