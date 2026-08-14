@@ -9,8 +9,12 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.net.toUri
 import com.hazbu.xpoint.Constants.AUTHORITY
-import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY
 import com.hazbu.xpoint.Constants.DEFAULT_ALTITUDE
+import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.DEFAULT_JITTER_RADIUS
 import com.hazbu.xpoint.Constants.DEFAULT_LAT
 import com.hazbu.xpoint.Constants.DEFAULT_LONG
 import com.hazbu.xpoint.Constants.DEFAULT_SPEED
@@ -18,13 +22,18 @@ import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.random.Random
 
-class XPointModule : XposedModule {
+class XPointModule : XposedModule() {
     private var fakeLat = DEFAULT_LAT
     private var fakeLong = DEFAULT_LONG
+    private var accuracyMin = DEFAULT_ACCURACY_MIN
+    private var accuracyMax = DEFAULT_ACCURACY_MAX
+    private var vAccuracyMin = DEFAULT_V_ACCURACY_MIN
+    private var vAccuracyMax = DEFAULT_V_ACCURACY_MAX
+    private var jitterRadius = DEFAULT_JITTER_RADIUS
     private var isInitialized = false
-
-    constructor() : super()
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
         super.onModuleLoaded(param)
@@ -52,7 +61,7 @@ class XPointModule : XposedModule {
                 result
             }
         } catch (e: Exception) {
-            Log.e("xPoint", "Failed to hook attachBaseContext: ${e.message}")
+            log(Log.WARN, "xPoint", "Failed to hook attachBaseContext: ${e.message}")
         }
 
         hookLocation(param)
@@ -65,7 +74,7 @@ class XPointModule : XposedModule {
             val clazz = param.classLoader.loadClass("com.hazbu.xpoint.MainActivity")
             hook(clazz.getDeclaredMethod("checkSelfActive")).intercept { true }
         } catch (e: Exception) {
-            Log.e("xPoint", "Failed to hook manager app: ${e.message}")
+            log(Log.ERROR, "xPoint", "Failed to hook manager app: ${e.message}")
         }
     }
 
@@ -76,7 +85,12 @@ class XPointModule : XposedModule {
                 if (cursor.moveToFirst()) {
                     fakeLat = cursor.getString(0).toDoubleOrNull() ?: DEFAULT_LAT
                     fakeLong = cursor.getString(1).toDoubleOrNull() ?: DEFAULT_LONG
-                    Log.i("xPoint", "Data refreshed: $fakeLat, $fakeLong")
+                    accuracyMin = cursor.getString(2).toFloatOrNull() ?: DEFAULT_ACCURACY_MIN
+                    accuracyMax = cursor.getString(3).toFloatOrNull() ?: DEFAULT_ACCURACY_MAX
+                    jitterRadius = cursor.getString(4).toFloatOrNull() ?: DEFAULT_JITTER_RADIUS
+                    vAccuracyMin = cursor.getString(5).toFloatOrNull() ?: DEFAULT_V_ACCURACY_MIN
+                    vAccuracyMax = cursor.getString(6).toFloatOrNull() ?: DEFAULT_V_ACCURACY_MAX
+                    Log.i("xPoint", "Data refreshed: $fakeLat, $fakeLong, range: $accuracyMin-$accuracyMax, v-range: $vAccuracyMin-$vAccuracyMax, jitter: $jitterRadius")
                 }
             }
         } catch (e: Exception) {
@@ -84,14 +98,48 @@ class XPointModule : XposedModule {
         }
     }
 
+    private fun getSpoofedAccuracy(): Float {
+        return if (accuracyMin == accuracyMax) {
+            accuracyMin
+        } else {
+            Random.nextFloat() * (accuracyMax - accuracyMin) + accuracyMin
+        }
+    }
+
+    private fun getSpoofedVerticalAccuracy(): Float {
+        return if (vAccuracyMin == vAccuracyMax) {
+            vAccuracyMin
+        } else {
+            Random.nextFloat() * (vAccuracyMax - vAccuracyMin) + vAccuracyMin
+        }
+    }
+
+    private fun getJitterLat(): Double {
+        if (jitterRadius <= 0) return fakeLat
+        val latOffset = (Random.nextDouble() * 2 - 1) * (jitterRadius / 111111.0)
+        return fakeLat + latOffset
+    }
+
+    private fun getJitterLong(lat: Double): Double {
+        if (jitterRadius <= 0) return fakeLong
+        val lonOffset = (Random.nextDouble() * 2 - 1) * (jitterRadius / (111111.0 * cos(Math.toRadians(lat))))
+        return fakeLong + lonOffset
+    }
+
     private fun hookLocation(param: PackageReadyParam) {
         try {
             val locationClass = param.classLoader.loadClass("android.location.Location")
             
-            hook(locationClass.getDeclaredMethod("getLatitude")).intercept { fakeLat }
-            hook(locationClass.getDeclaredMethod("getLongitude")).intercept { fakeLong }
+            hook(locationClass.getDeclaredMethod("getLatitude")).intercept { getJitterLat() }
+            hook(locationClass.getDeclaredMethod("getLongitude")).intercept { getJitterLong(fakeLat) }
             hook(locationClass.getDeclaredMethod("isFromMockProvider")).intercept { false }
-            hook(locationClass.getDeclaredMethod("getAccuracy")).intercept { DEFAULT_ACCURACY }
+            hook(locationClass.getDeclaredMethod("getAccuracy")).intercept { getSpoofedAccuracy() }
+            
+            try {
+                hook(locationClass.getDeclaredMethod("getVerticalAccuracyMeters")).intercept { getSpoofedVerticalAccuracy() }
+                hook(locationClass.getDeclaredMethod("hasVerticalAccuracy")).intercept { true }
+            } catch (_: Exception) {}
+
             hook(locationClass.getDeclaredMethod("getSpeed")).intercept { DEFAULT_SPEED }
             hook(locationClass.getDeclaredMethod("getAltitude")).intercept { DEFAULT_ALTITUDE }
         } catch (e: Exception) {
@@ -99,7 +147,7 @@ class XPointModule : XposedModule {
         }
     }
 
-    @SuppressLint("DiscouragedPrivateApi")
+    @SuppressLint("DiscouragedPrivateApi", "PrivateApi")
     private fun hookLocationManager(param: PackageReadyParam) {
         try {
             val lmClass = param.classLoader.loadClass("android.location.LocationManager")
@@ -109,9 +157,10 @@ class XPointModule : XposedModule {
                 hook(m1).intercept { chain ->
                     val result = chain.proceed()
                     val loc = result as? Location ?: Location("gps")
-                    loc.latitude = fakeLat
-                    loc.longitude = fakeLong
-                    loc.accuracy = DEFAULT_ACCURACY
+                    val lat = getJitterLat()
+                    loc.latitude = lat
+                    loc.longitude = getJitterLong(lat)
+                    loc.accuracy = getSpoofedAccuracy()
                     loc.time = System.currentTimeMillis()
                     loc.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
                     loc
@@ -127,9 +176,10 @@ class XPointModule : XposedModule {
                     hook(m2).intercept { chain ->
                         val result = chain.proceed()
                         val loc = result as? Location ?: Location("gps")
-                        loc.latitude = fakeLat
-                        loc.longitude = fakeLong
-                        loc.accuracy = DEFAULT_ACCURACY
+                        val lat = getJitterLat()
+                        loc.latitude = lat
+                        loc.longitude = getJitterLong(lat)
+                        loc.accuracy = getSpoofedAccuracy()
                         loc.time = System.currentTimeMillis()
                         loc.elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
                         loc
@@ -158,12 +208,14 @@ class XPointModule : XposedModule {
                     Double::class.javaPrimitiveType,
                     Int::class.javaPrimitiveType
                 )
-                hook(getFromLocation).intercept { chain ->
-                    Log.i("xPoint", "Geocoder intercepted for $fakeLat, $fakeLong")
+                hook(getFromLocation).intercept { _ ->
+                    val lat = getJitterLat()
+                    val lon = getJitterLong(lat)
+                    Log.i("xPoint", "Geocoder intercepted for $lat, $lon")
                     val addresses = ArrayList<Address>()
                     val address = Address(Locale.getDefault())
-                    address.latitude = fakeLat
-                    address.longitude = fakeLong
+                    address.latitude = lat
+                    address.longitude = lon
                     addresses.add(address)
                     addresses
                 }

@@ -91,6 +91,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="20dp">
+
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
@@ -116,6 +117,196 @@
                         android:layout_height="wrap_content"
                         android:inputType="numberDecimal|numberSigned" />
                 </com.google.android.material.textfield.TextInputLayout>
+
+                <LinearLayout
+                    android:id="@+id/layout_jitter_radius"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_jitter_radius_val"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="Random Radius: 5m"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_jitter_radius"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:stepSize="5.0"
+                            android:value="5.0"
+                            android:valueFrom="0.0"
+                            android:valueTo="1000.0"
+                            app:haloRadius="20dp"
+                            app:labelBehavior="floating"
+                            app:thumbColor="?attr/colorPrimary"
+                            app:thumbRadius="10dp"
+                            app:tickVisible="false"
+                            app:trackHeight="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_reset_jitter"
+                            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="8dp"
+                            android:padding="0dp"
+                            app:icon="@android:drawable/ic_menu_revert"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
+                            app:iconSize="20dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/layout_accuracy_range"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_accuracy_range_val"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="H-Accuracy: 0m - 5m"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.slider.RangeSlider
+                            android:id="@+id/slider_accuracy_range"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:stepSize="5.0"
+                            android:valueFrom="0.0"
+                            android:valueTo="50.0"
+                            app:haloRadius="20dp"
+                            app:labelBehavior="floating"
+                            app:thumbColor="?attr/colorPrimary"
+                            app:thumbRadius="12dp"
+                            app:tickVisible="false"
+                            app:trackHeight="4dp"
+                            app:values="@array/initial_range_values" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_reset_accuracy"
+                            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="8dp"
+                            android:padding="0dp"
+                            app:icon="@android:drawable/ic_menu_revert"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
+                            app:iconSize="20dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layout_v_accuracy_range"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_v_accuracy_range_val"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="V-Accuracy: 0m - 5m"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.slider.RangeSlider
+                            android:id="@+id/slider_v_accuracy_range"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:stepSize="5.0"
+                            android:valueFrom="0.0"
+                            android:valueTo="50.0"
+                            app:haloRadius="20dp"
+                            app:labelBehavior="floating"
+                            app:thumbColor="?attr/colorPrimary"
+                            app:thumbRadius="12dp"
+                            app:tickVisible="false"
+                            app:trackHeight="4dp"
+                            app:values="@array/initial_range_values" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_reset_v_accuracy"
+                            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="8dp"
+                            android:padding="0dp"
+                            app:icon="@android:drawable/ic_menu_revert"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
+                            app:iconSize="20dp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/layout_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal"
+                    android:alpha="0.8">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Current Spoof Preview"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_preview_coords"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="0.000000, 0.000000"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:fontFamily="monospace"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                </LinearLayout>
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_save"
                     android:layout_width="match_parent"

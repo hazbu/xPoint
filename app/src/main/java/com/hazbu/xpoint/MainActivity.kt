@@ -1,10 +1,10 @@
 package com.hazbu.xpoint
 
 import android.os.Bundle
-import android.util.Log
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -17,14 +17,28 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.slider.RangeSlider
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.DEFAULT_JITTER_RADIUS
 import com.hazbu.xpoint.Constants.DEFAULT_LAT
 import com.hazbu.xpoint.Constants.DEFAULT_LONG
+import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.KEY_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.KEY_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.KEY_JITTER_RADIUS
 import com.hazbu.xpoint.Constants.KEY_LAT
 import com.hazbu.xpoint.Constants.KEY_LONG
+import com.hazbu.xpoint.Constants.KEY_V_ACCURACY_MAX
+import com.hazbu.xpoint.Constants.KEY_V_ACCURACY_MIN
 import com.hazbu.xpoint.Constants.PREFS_NAME
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
+import kotlin.math.cos
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener {
 
@@ -32,7 +46,27 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private lateinit var cardModuleStatus: com.google.android.material.card.MaterialCardView
     private lateinit var cardScopedApps: com.google.android.material.card.MaterialCardView
     private lateinit var layoutScopedApps: LinearLayout
+    
+    private lateinit var sliderAccuracyRange: RangeSlider
+    private lateinit var tvAccuracyRangeVal: TextView
+
+    private lateinit var sliderVAccuracyRange: RangeSlider
+    private lateinit var tvVAccuracyRangeVal: TextView
+
+    private lateinit var sliderJitterRadius: Slider
+    private lateinit var tvJitterRadiusVal: TextView
+    private lateinit var tvPreviewCoords: TextView
+    private lateinit var etLatitude: TextInputEditText
+    private lateinit var etLongitude: TextInputEditText
+    
     private var mXposedService: XposedService? = null
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val updatePreviewRunnable = object : Runnable {
+        override fun run() {
+            updatePreview()
+            handler.postDelayed(this, 1000)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         DynamicColors.applyToActivityIfAvailable(this)
@@ -48,6 +82,12 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     override fun onResume() {
         super.onResume()
         updateModuleStatusUI()
+        handler.post(updatePreviewRunnable)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(updatePreviewRunnable)
     }
 
     override fun onServiceBind(service: XposedService) {
@@ -78,8 +118,8 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     }
 
     private fun setupUI() {
-        val etLatitude = findViewById<TextInputEditText>(R.id.et_latitude)
-        val etLongitude = findViewById<TextInputEditText>(R.id.et_longitude)
+        etLatitude = findViewById(R.id.et_latitude)
+        etLongitude = findViewById(R.id.et_longitude)
         val btnSave = findViewById<android.widget.Button>(R.id.btn_save)
         val tvTitle = findViewById<TextView>(R.id.tv_title)
         
@@ -87,14 +127,112 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         cardModuleStatus = findViewById(R.id.card_module_status)
         cardScopedApps = findViewById(R.id.card_scoped_apps)
         layoutScopedApps = findViewById(R.id.layout_scoped_apps)
+        
+        sliderAccuracyRange = findViewById(R.id.slider_accuracy_range)
+        tvAccuracyRangeVal = findViewById(R.id.tv_accuracy_range_val)
+        val btnResetAccuracy = findViewById<View>(R.id.btn_reset_accuracy)
+
+        sliderVAccuracyRange = findViewById(R.id.slider_v_accuracy_range)
+        tvVAccuracyRangeVal = findViewById(R.id.tv_v_accuracy_range_val)
+        val btnResetVAccuracy = findViewById<View>(R.id.btn_reset_v_accuracy)
+
+        sliderJitterRadius = findViewById(R.id.slider_jitter_radius)
+        tvJitterRadiusVal = findViewById(R.id.tv_jitter_radius_val)
+        val btnResetJitter = findViewById<View>(R.id.btn_reset_jitter)
+        tvPreviewCoords = findViewById(R.id.tv_preview_coords)
 
         setupTitleSpannable(tvTitle)
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        
         etLatitude.setText(prefs.getString(KEY_LAT, DEFAULT_LAT.toString()))
         etLongitude.setText(prefs.getString(KEY_LONG, DEFAULT_LONG.toString()))
-        btnSave.setOnClickListener {
-            handleSave(etLatitude.text.toString(), etLongitude.text.toString())
+        
+        // Horizontal Accuracy
+        val minAcc = prefs.getFloat(KEY_ACCURACY_MIN, DEFAULT_ACCURACY_MIN)
+        val maxAcc = prefs.getFloat(KEY_ACCURACY_MAX, DEFAULT_ACCURACY_MAX)
+        sliderAccuracyRange.setValues(minAcc, maxAcc)
+        updateAccuracyLabel(minAcc, maxAcc)
+        sliderAccuracyRange.addOnChangeListener { slider, _, _ ->
+            updateAccuracyLabel(slider.values[0], slider.values[1])
         }
+        btnResetAccuracy.setOnClickListener {
+            sliderAccuracyRange.setValues(DEFAULT_ACCURACY_MIN, DEFAULT_ACCURACY_MAX)
+            updateAccuracyLabel(DEFAULT_ACCURACY_MIN, DEFAULT_ACCURACY_MAX)
+        }
+
+        // Vertical Accuracy
+        val minVAcc = prefs.getFloat(KEY_V_ACCURACY_MIN, DEFAULT_V_ACCURACY_MIN)
+        val maxVAcc = prefs.getFloat(KEY_V_ACCURACY_MAX, DEFAULT_V_ACCURACY_MAX)
+        sliderVAccuracyRange.setValues(minVAcc, maxVAcc)
+        updateVAccuracyLabel(minVAcc, maxVAcc)
+        sliderVAccuracyRange.addOnChangeListener { slider, _, _ ->
+            updateVAccuracyLabel(slider.values[0], slider.values[1])
+        }
+        btnResetVAccuracy.setOnClickListener {
+            sliderVAccuracyRange.setValues(DEFAULT_V_ACCURACY_MIN, DEFAULT_V_ACCURACY_MAX)
+            updateVAccuracyLabel(DEFAULT_V_ACCURACY_MIN, DEFAULT_V_ACCURACY_MAX)
+        }
+        
+        // Jitter
+        val jRad = prefs.getFloat(KEY_JITTER_RADIUS, DEFAULT_JITTER_RADIUS)
+        sliderJitterRadius.value = jRad
+        updateJitterLabel(jRad)
+        sliderJitterRadius.addOnChangeListener { _, value, _ ->
+            updateJitterLabel(value)
+        }
+        btnResetJitter.setOnClickListener {
+            sliderJitterRadius.value = DEFAULT_JITTER_RADIUS
+            updateJitterLabel(DEFAULT_JITTER_RADIUS)
+        }
+
+        btnSave.setOnClickListener {
+            handleSave(
+                etLatitude.text.toString(),
+                etLongitude.text.toString(),
+                sliderAccuracyRange.values[0],
+                sliderAccuracyRange.values[1],
+                sliderVAccuracyRange.values[0],
+                sliderVAccuracyRange.values[1],
+                sliderJitterRadius.value
+            )
+        }
+    }
+
+    private fun updatePreview() {
+        if (!::tvPreviewCoords.isInitialized) return
+        
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val baseLat = prefs.getString(KEY_LAT, DEFAULT_LAT.toString())?.toDoubleOrNull() ?: DEFAULT_LAT
+        val baseLong = prefs.getString(KEY_LONG, DEFAULT_LONG.toString())?.toDoubleOrNull() ?: DEFAULT_LONG
+        val radius = prefs.getFloat(KEY_JITTER_RADIUS, DEFAULT_JITTER_RADIUS).toDouble()
+
+        if (radius <= 0) {
+            tvPreviewCoords.text = "%.6f, %.6f".format(baseLat, baseLong)
+            return
+        }
+
+        val latOffset = (Random.nextDouble() * 2 - 1) * (radius / 111111.0)
+        val finalLat = baseLat + latOffset
+        val lonOffset = (Random.nextDouble() * 2 - 1) * (radius / (111111.0 * cos(Math.toRadians(finalLat))))
+        val finalLong = baseLong + lonOffset
+
+        tvPreviewCoords.text = "%.6f, %.6f".format(finalLat, finalLong)
+    }
+
+    private fun formatValue(v: Float): String {
+        return if (v % 1f == 0f) "${v.toInt()}m" else "%.1fm".format(v)
+    }
+
+    private fun updateAccuracyLabel(min: Float, max: Float) {
+        tvAccuracyRangeVal.text = getString(R.string.label_accuracy_range_val, formatValue(min), formatValue(max))
+    }
+
+    private fun updateVAccuracyLabel(min: Float, max: Float) {
+        tvVAccuracyRangeVal.text = getString(R.string.label_v_accuracy_range_val, formatValue(min), formatValue(max))
+    }
+
+    private fun updateJitterLabel(radius: Float) {
+        tvJitterRadiusVal.text = getString(R.string.label_jitter_radius_val, formatValue(radius))
     }
 
     private fun updateModuleStatusUI() {
@@ -133,14 +271,28 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         tvTitle.text = spannable
     }
 
-    private fun handleSave(latStr: String, lonStr: String) {
+    private fun handleSave(
+        latStr: String, 
+        lonStr: String, 
+        minA: Float, 
+        maxA: Float,
+        minVA: Float,
+        maxVA: Float,
+        jRad: Float
+    ) {
         val lat = latStr.toDoubleOrNull()
         val lon = lonStr.toDoubleOrNull()
+
         if (lat != null && lon != null) {
             if (lat in -90.0..90.0 && lon in -180.0..180.0) {
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().apply {
                     putString(KEY_LAT, latStr)
                     putString(KEY_LONG, lonStr)
+                    putFloat(KEY_ACCURACY_MIN, minA)
+                    putFloat(KEY_ACCURACY_MAX, maxA)
+                    putFloat(KEY_V_ACCURACY_MIN, minVA)
+                    putFloat(KEY_V_ACCURACY_MAX, maxVA)
+                    putFloat(KEY_JITTER_RADIUS, jRad)
                     apply()
                 }
                 showToast(getString(R.string.toast_save_success))
