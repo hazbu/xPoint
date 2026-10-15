@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <array name="initial_range_values">
-        <item>0.0</item>
-        <item>5.0</item>
+        <item>3.0</item>
+        <item>10.0</item>
+    </array>
+    <array name="initial_v_range_values">
+        <item>6.0</item>
+        <item>16.0</item>
     </array>
 </resources>

@@ -3,14 +3,18 @@
     <string name="title_manager">xPoint</string>
     <string name="hint_latitude">Latitude</string>
     <string name="hint_longitude">Longitude</string>
+    <string name="hint_altitude">Altitude (m)</string>
     <string name="btn_save">Save Settings</string>
-    <string name="note_restart">Note: Changes apply after restarting the target app.</string>
-    <string name="toast_save_success">Settings Saved Successfully</string>
+    <string name="note_restart">Changes apply instantly via Live Sync.</string>
+    <string name="toast_save_success">Settings Saved &amp; Synced</string>
     <string name="toast_invalid_range">Invalid range (Lat: -90 to 90, Long: -180 to 180)</string>
     <string name="toast_invalid_input">Please enter valid decimal numbers</string>
     <string name="status_module_active">Active</string>
     <string name="status_module_inactive">Inactive</string>
+    <string name="label_enable_spoof">Enable </string>
+    <string name="status_spoof_disabled">Location Spoofing is Disabled</string>
     <string name="label_accuracy_range_val">H-Accuracy: %1$s - %2$s</string>
     <string name="label_v_accuracy_range_val">V-Accuracy: %1$s - %2$s</string>
     <string name="label_jitter_radius_val">Random Radius: %1$s</string>
+    <string name="label_altitude_val">Altitude: %1$s</string>
 </resources>

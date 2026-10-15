@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.toColorInt
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.slider.RangeSlider
@@ -22,6 +23,7 @@ import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MAX
 import com.hazbu.xpoint.Constants.DEFAULT_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.DEFAULT_ALTITUDE
 import com.hazbu.xpoint.Constants.DEFAULT_JITTER_RADIUS
 import com.hazbu.xpoint.Constants.DEFAULT_LAT
 import com.hazbu.xpoint.Constants.DEFAULT_LONG
@@ -29,15 +31,24 @@ import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MAX
 import com.hazbu.xpoint.Constants.DEFAULT_V_ACCURACY_MIN
 import com.hazbu.xpoint.Constants.KEY_ACCURACY_MAX
 import com.hazbu.xpoint.Constants.KEY_ACCURACY_MIN
+import com.hazbu.xpoint.Constants.KEY_ALTITUDE
 import com.hazbu.xpoint.Constants.KEY_JITTER_RADIUS
 import com.hazbu.xpoint.Constants.KEY_LAT
 import com.hazbu.xpoint.Constants.KEY_LONG
+import androidx.core.net.toUri
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.hazbu.xpoint.Constants.AUTHORITY
+import com.hazbu.xpoint.Constants.DEFAULT_IS_ENABLED
+import com.hazbu.xpoint.Constants.JITTER_INTERVAL_MS
+import com.hazbu.xpoint.Constants.KEY_IS_ENABLED
 import com.hazbu.xpoint.Constants.KEY_V_ACCURACY_MAX
 import com.hazbu.xpoint.Constants.KEY_V_ACCURACY_MIN
 import com.hazbu.xpoint.Constants.PREFS_NAME
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
 import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener {
@@ -47,12 +58,15 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private lateinit var cardScopedApps: com.google.android.material.card.MaterialCardView
     private lateinit var layoutScopedApps: LinearLayout
     
+    private lateinit var switchEnableSpoof: MaterialSwitch
     private lateinit var sliderAccuracyRange: RangeSlider
     private lateinit var tvAccuracyRangeVal: TextView
 
     private lateinit var sliderVAccuracyRange: RangeSlider
     private lateinit var tvVAccuracyRangeVal: TextView
 
+    private lateinit var sliderAltitude: Slider
+    private lateinit var tvAltitudeVal: TextView
     private lateinit var sliderJitterRadius: Slider
     private lateinit var tvJitterRadiusVal: TextView
     private lateinit var tvPreviewCoords: TextView
@@ -64,7 +78,7 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private val updatePreviewRunnable = object : Runnable {
         override fun run() {
             updatePreview()
-            handler.postDelayed(this, 1000)
+            handler.postDelayed(this, JITTER_INTERVAL_MS)
         }
     }
 
@@ -120,6 +134,10 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun setupUI() {
         etLatitude = findViewById(R.id.et_latitude)
         etLongitude = findViewById(R.id.et_longitude)
+        sliderAltitude = findViewById(R.id.slider_altitude)
+        tvAltitudeVal = findViewById(R.id.tv_altitude_val)
+        val btnResetAltitude = findViewById<View>(R.id.btn_reset_altitude)
+
         val btnSave = findViewById<android.widget.Button>(R.id.btn_save)
         val tvTitle = findViewById<TextView>(R.id.tv_title)
         
@@ -143,15 +161,45 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
         setupTitleSpannable(tvTitle)
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+
+        switchEnableSpoof = findViewById(R.id.switch_enable_spoof)
+        val isEnabled = prefs.getBoolean(KEY_IS_ENABLED, DEFAULT_IS_ENABLED)
+        switchEnableSpoof.isChecked = isEnabled
+        switchEnableSpoof.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean(KEY_IS_ENABLED, isChecked).apply()
+            val uri = "content://$AUTHORITY".toUri()
+            contentResolver.notifyChange(uri, null)
+            updatePreview()
+        }
         
         etLatitude.setText(prefs.getString(KEY_LAT, DEFAULT_LAT.toString()))
         etLongitude.setText(prefs.getString(KEY_LONG, DEFAULT_LONG.toString()))
         
+        etLatitude.doAfterTextChanged { updatePreview() }
+        etLongitude.doAfterTextChanged { updatePreview() }
+
+        // Altitude
+        val savedAlt = prefs.getString(KEY_ALTITUDE, DEFAULT_ALTITUDE.toString())?.toFloatOrNull() ?: DEFAULT_ALTITUDE.toFloat()
+        val safeAlt = (Math.round(savedAlt / 1.0f) * 1.0f).coerceIn(0f, 1000f)
+        sliderAltitude.value = safeAlt
+        updateAltitudeLabel(safeAlt)
+        sliderAltitude.addOnChangeListener { _, value, _ ->
+            updateAltitudeLabel(value)
+            updatePreview()
+        }
+        btnResetAltitude.setOnClickListener {
+            sliderAltitude.value = DEFAULT_ALTITUDE.toFloat()
+            updateAltitudeLabel(DEFAULT_ALTITUDE.toFloat())
+            updatePreview()
+        }
+        
         // Horizontal Accuracy
         val minAcc = prefs.getFloat(KEY_ACCURACY_MIN, DEFAULT_ACCURACY_MIN)
         val maxAcc = prefs.getFloat(KEY_ACCURACY_MAX, DEFAULT_ACCURACY_MAX)
-        sliderAccuracyRange.setValues(minAcc, maxAcc)
-        updateAccuracyLabel(minAcc, maxAcc)
+        val safeMinAcc = (Math.round(minAcc / 1.0f) * 1.0f).coerceIn(0f, 50f)
+        val safeMaxAcc = (Math.round(maxAcc / 1.0f) * 1.0f).coerceIn(safeMinAcc, 50f)
+        sliderAccuracyRange.setValues(safeMinAcc, safeMaxAcc)
+        updateAccuracyLabel(safeMinAcc, safeMaxAcc)
         sliderAccuracyRange.addOnChangeListener { slider, _, _ ->
             updateAccuracyLabel(slider.values[0], slider.values[1])
         }
@@ -163,8 +211,10 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         // Vertical Accuracy
         val minVAcc = prefs.getFloat(KEY_V_ACCURACY_MIN, DEFAULT_V_ACCURACY_MIN)
         val maxVAcc = prefs.getFloat(KEY_V_ACCURACY_MAX, DEFAULT_V_ACCURACY_MAX)
-        sliderVAccuracyRange.setValues(minVAcc, maxVAcc)
-        updateVAccuracyLabel(minVAcc, maxVAcc)
+        val safeMinVAcc = (Math.round(minVAcc / 1.0f) * 1.0f).coerceIn(0f, 50f)
+        val safeMaxVAcc = (Math.round(maxVAcc / 1.0f) * 1.0f).coerceIn(safeMinVAcc, 50f)
+        sliderVAccuracyRange.setValues(safeMinVAcc, safeMaxVAcc)
+        updateVAccuracyLabel(safeMinVAcc, safeMaxVAcc)
         sliderVAccuracyRange.addOnChangeListener { slider, _, _ ->
             updateVAccuracyLabel(slider.values[0], slider.values[1])
         }
@@ -175,25 +225,30 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
         
         // Jitter
         val jRad = prefs.getFloat(KEY_JITTER_RADIUS, DEFAULT_JITTER_RADIUS)
-        sliderJitterRadius.value = jRad
-        updateJitterLabel(jRad)
+        val safeJRad = (Math.round(jRad / 1.0f) * 1.0f).coerceIn(0f, 50f)
+        sliderJitterRadius.value = safeJRad
+        updateJitterLabel(safeJRad)
         sliderJitterRadius.addOnChangeListener { _, value, _ ->
             updateJitterLabel(value)
+            updatePreview()
         }
         btnResetJitter.setOnClickListener {
             sliderJitterRadius.value = DEFAULT_JITTER_RADIUS
             updateJitterLabel(DEFAULT_JITTER_RADIUS)
+            updatePreview()
         }
 
         btnSave.setOnClickListener {
             handleSave(
                 etLatitude.text.toString(),
                 etLongitude.text.toString(),
+                sliderAltitude.value.toDouble(),
                 sliderAccuracyRange.values[0],
                 sliderAccuracyRange.values[1],
                 sliderVAccuracyRange.values[0],
                 sliderVAccuracyRange.values[1],
-                sliderJitterRadius.value
+                sliderJitterRadius.value,
+                switchEnableSpoof.isChecked
             )
         }
     }
@@ -201,22 +256,61 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun updatePreview() {
         if (!::tvPreviewCoords.isInitialized) return
         
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        val baseLat = prefs.getString(KEY_LAT, DEFAULT_LAT.toString())?.toDoubleOrNull() ?: DEFAULT_LAT
-        val baseLong = prefs.getString(KEY_LONG, DEFAULT_LONG.toString())?.toDoubleOrNull() ?: DEFAULT_LONG
-        val radius = prefs.getFloat(KEY_JITTER_RADIUS, DEFAULT_JITTER_RADIUS).toDouble()
-
-        if (radius <= 0) {
-            tvPreviewCoords.text = "%.6f, %.6f".format(baseLat, baseLong)
+        val isEnabled = if (::switchEnableSpoof.isInitialized) {
+            switchEnableSpoof.isChecked
+        } else {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_IS_ENABLED, DEFAULT_IS_ENABLED)
+        }
+        
+        if (!isEnabled) {
+            tvPreviewCoords.text = getString(R.string.status_spoof_disabled)
             return
         }
 
-        val latOffset = (Random.nextDouble() * 2 - 1) * (radius / 111111.0)
-        val finalLat = baseLat + latOffset
-        val lonOffset = (Random.nextDouble() * 2 - 1) * (radius / (111111.0 * cos(Math.toRadians(finalLat))))
-        val finalLong = baseLong + lonOffset
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val baseLat = if (::etLatitude.isInitialized) {
+            etLatitude.text?.toString()?.toDoubleOrNull() 
+                ?: prefs.getString(KEY_LAT, DEFAULT_LAT.toString())?.toDoubleOrNull() 
+                ?: DEFAULT_LAT
+        } else {
+            prefs.getString(KEY_LAT, DEFAULT_LAT.toString())?.toDoubleOrNull() ?: DEFAULT_LAT
+        }
 
-        tvPreviewCoords.text = "%.6f, %.6f".format(finalLat, finalLong)
+        val baseLong = if (::etLongitude.isInitialized) {
+            etLongitude.text?.toString()?.toDoubleOrNull() 
+                ?: prefs.getString(KEY_LONG, DEFAULT_LONG.toString())?.toDoubleOrNull() 
+                ?: DEFAULT_LONG
+        } else {
+            prefs.getString(KEY_LONG, DEFAULT_LONG.toString())?.toDoubleOrNull() ?: DEFAULT_LONG
+        }
+
+        val baseAlt = if (::sliderAltitude.isInitialized) {
+            sliderAltitude.value.toDouble()
+        } else {
+            prefs.getString(KEY_ALTITUDE, DEFAULT_ALTITUDE.toString())?.toDoubleOrNull() ?: DEFAULT_ALTITUDE
+        }
+
+        val radius = if (::sliderJitterRadius.isInitialized) {
+            sliderJitterRadius.value.toDouble()
+        } else {
+            prefs.getFloat(KEY_JITTER_RADIUS, DEFAULT_JITTER_RADIUS).toDouble()
+        }
+
+        if (radius <= 0.0) {
+            tvPreviewCoords.text = "%.6f, %.6f • Alt: %.1fm".format(baseLat, baseLong, baseAlt)
+            return
+        }
+
+        val angle = Random.nextDouble() * 2 * Math.PI
+        val distance = sqrt(Random.nextDouble()) * radius
+        val latOffset = (distance * cos(angle)) / 111111.0
+        val finalLat = baseLat + latOffset
+        val lonOffset = (distance * sin(angle)) / (111111.0 * cos(Math.toRadians(finalLat)))
+        val finalLong = baseLong + lonOffset
+        val vOffset = (Random.nextDouble() * 2 - 1) * 0.5
+        val finalAlt = baseAlt + vOffset
+
+        tvPreviewCoords.text = "%.6f, %.6f • Alt: %.1fm".format(finalLat, finalLong, finalAlt)
     }
 
     private fun formatValue(v: Float): String {
@@ -233,6 +327,10 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
 
     private fun updateJitterLabel(radius: Float) {
         tvJitterRadiusVal.text = getString(R.string.label_jitter_radius_val, formatValue(radius))
+    }
+
+    private fun updateAltitudeLabel(altitude: Float) {
+        tvAltitudeVal.text = getString(R.string.label_altitude_val, formatValue(altitude))
     }
 
     private fun updateModuleStatusUI() {
@@ -274,11 +372,13 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
     private fun handleSave(
         latStr: String, 
         lonStr: String, 
+        alt: Double,
         minA: Float, 
         maxA: Float,
         minVA: Float,
         maxVA: Float,
-        jRad: Float
+        jRad: Float,
+        isEnabled: Boolean
     ) {
         val lat = latStr.toDoubleOrNull()
         val lon = lonStr.toDoubleOrNull()
@@ -288,13 +388,20 @@ class MainActivity : AppCompatActivity(), XposedServiceHelper.OnServiceListener 
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().apply {
                     putString(KEY_LAT, latStr)
                     putString(KEY_LONG, lonStr)
+                    putString(KEY_ALTITUDE, alt.toString())
                     putFloat(KEY_ACCURACY_MIN, minA)
                     putFloat(KEY_ACCURACY_MAX, maxA)
                     putFloat(KEY_V_ACCURACY_MIN, minVA)
                     putFloat(KEY_V_ACCURACY_MAX, maxVA)
                     putFloat(KEY_JITTER_RADIUS, jRad)
+                    putBoolean(KEY_IS_ENABLED, isEnabled)
                     apply()
                 }
+
+                // Trigger live sync to target apps via ContentResolver
+                val uri = "content://$AUTHORITY".toUri()
+                contentResolver.notifyChange(uri, null)
+
                 showToast(getString(R.string.toast_save_success))
             } else {
                 showToast(getString(R.string.toast_invalid_range), true)

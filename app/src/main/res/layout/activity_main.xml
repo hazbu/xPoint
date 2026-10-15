@@ -92,6 +92,34 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/label_enable_spoof"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch_enable_spoof"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <com.google.android.material.divider.MaterialDivider
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp" />
+
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
@@ -117,6 +145,57 @@
                         android:layout_height="wrap_content"
                         android:inputType="numberDecimal|numberSigned" />
                 </com.google.android.material.textfield.TextInputLayout>
+                <LinearLayout
+                    android:id="@+id/layout_altitude"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_altitude_val"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:text="Altitude: 25m"
+                        android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                        android:textColor="?attr/colorOnSurface" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/slider_altitude"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:stepSize="1.0"
+                            android:value="25.0"
+                            android:valueFrom="0.0"
+                            android:valueTo="1000.0"
+                            app:haloRadius="20dp"
+                            app:labelBehavior="floating"
+                            app:thumbColor="?attr/colorPrimary"
+                            app:thumbRadius="10dp"
+                            app:tickVisible="false"
+                            app:trackHeight="4dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_reset_altitude"
+                            style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="8dp"
+                            android:padding="0dp"
+                            app:icon="@android:drawable/ic_menu_revert"
+                            app:iconGravity="textStart"
+                            app:iconPadding="0dp"
+                            app:iconSize="20dp" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/layout_jitter_radius"
@@ -130,7 +209,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:text="Random Radius: 5m"
+                        android:text="Random Radius: 3m"
                         android:textAppearance="@style/TextAppearance.AppCompat.Small"
                         android:textColor="?attr/colorOnSurface" />
 
@@ -145,10 +224,10 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:stepSize="5.0"
-                            android:value="5.0"
+                            android:stepSize="1.0"
+                            android:value="3.0"
                             android:valueFrom="0.0"
-                            android:valueTo="1000.0"
+                            android:valueTo="50.0"
                             app:haloRadius="20dp"
                             app:labelBehavior="floating"
                             app:thumbColor="?attr/colorPrimary"
@@ -187,7 +266,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:text="H-Accuracy: 0m - 5m"
+                        android:text="H-Accuracy: 3m - 10m"
                         android:textAppearance="@style/TextAppearance.AppCompat.Small"
                         android:textColor="?attr/colorOnSurface" />
 
@@ -202,7 +281,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:stepSize="5.0"
+                            android:stepSize="1.0"
                             android:valueFrom="0.0"
                             android:valueTo="50.0"
                             app:haloRadius="20dp"
@@ -239,7 +318,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
-                        android:text="V-Accuracy: 0m - 5m"
+                        android:text="V-Accuracy: 6m - 16m"
                         android:textAppearance="@style/TextAppearance.AppCompat.Small"
                         android:textColor="?attr/colorOnSurface" />
 
@@ -254,7 +333,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:stepSize="5.0"
+                            android:stepSize="1.0"
                             android:valueFrom="0.0"
                             android:valueTo="50.0"
                             app:haloRadius="20dp"
@@ -263,7 +342,7 @@
                             app:thumbRadius="12dp"
                             app:tickVisible="false"
                             app:trackHeight="4dp"
-                            app:values="@array/initial_range_values" />
+                            app:values="@array/initial_v_range_values" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_reset_v_accuracy"
